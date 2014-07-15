@@ -456,10 +456,20 @@ for handlerstr in tgt_handlers:
     handler = importlib.import_module(handlerstr)
     handler_route_replace( handler.default_handlers, r'(?P<notebook_id>\w+-\w+-\w+-\w+-\w+)',r'(?P<notebook_id>ws\.\d+\.obj\.\d+)')
 
-    # Crude and ugly seems to be a theme.
-    # patch in an optional handler for ws.XXX.obj.YYY.ver.ZZZ
-    IPython.html.notebook.handlers.default_handlers.append((r'(?P<notebook_id>ws\.\d+\.obj\.\d+\.ver\.\d+)', IPython.html.notebook.handlers.NamedNotebookHandler))
-    IPython.html.services.notebooks.handlers.default_handlers.append((r'/notebooks/(?P<notebook_id>ws\.\d+\.obj\.\d+\.ver\.\d+)', IPython.html.services.notebooks.handlers.NotebookHandler))
+id_ver_regex = r"(?P<notebook_id>ws\.\d+\.obj\.\d+\.ver\.\d+)"
+checkpoint_id_regex = r"(?P<checkpoint_id>[\w-]+)"
+
+# Crude and ugly seems to be a theme.
+# patch in an optional handler for ws.XXX.obj.YYY.ver.ZZZ
+IPython.html.notebook.handlers.default_handlers.append((r"/%s" % id_ver_regex,
+    IPython.html.notebook.handlers.NamedNotebookHandler))
+
+IPython.html.services.notebooks.handlers.default_handlers.append((r"/notebooks/%s" % id_ver_regex,
+    IPython.html.services.notebooks.handlers.NotebookHandler))
+IPython.html.services.notebooks.handlers.default_handlers.append((r"/notebooks/%s/checkpoints" % id_ver_regex, 
+    IPython.html.services.notebooks.handlers.NotebookCheckpointsHandler))
+IPython.html.services.notebooks.handlers.default_handlers.append((r"/notebooks/%s/checkpoints/%s" % (id_ver_regex, checkpoint_id_regex),
+    IPython.html.services.notebooks.handlers.ModifyNotebookCheckpointsHandler))
 
 # Load the plupload handler
 import upload_handler
