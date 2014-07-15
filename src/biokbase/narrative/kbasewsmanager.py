@@ -81,7 +81,7 @@ class KBaseWSNotebookManager(NotebookManager):
     ws_type = Unicode(ws_util.ws_narrative_type, config=True, help='Type to store narratives within workspace service')
     # regex for parsing out workspace_id and object_id from
     # a "ws.{workspace}.{object}" string
-    ws_regex = re.compile( '^ws\.(?P<wsid>\d+)\.obj\.(?P<objid>\d+)')
+    ws_regex = re.compile( '^ws\.(?P<wsid>\d+)\.obj\.(?P<objid>\d+)(\.ver\.(?P<ver>\d+))?')
     # regex for parsing out fully qualified workspace name and object name
     ws_regex2 = re.compile( '^(?P<wsname>[\w:]+)/(?P<objname>[\w]+)')
     # regex for par
@@ -212,7 +212,19 @@ class KBaseWSNotebookManager(NotebookManager):
             self.log.debug("Checking other workspace %s for %s"%(m.group('wsid'),m.group('objid')))
             objmeta = ws_util.get_wsobj_meta( self.wsclient(), ws_id=m.group('wsid'))
             self.log.debug("Checking other workspace %s for %s"%(m.group('wsid'),m.group('objid')))
-            if notebook_id in objmeta:
+
+            # We get a little tricky here.
+            # Now we have a dict of all narrative objects
+            # But we optionally have a version. If so, we need to make sure it's 
+            # <= the max version
+            base_id = "ws.%s.obj.%s" %(m.group('wsid'), m.group('objid'))
+            ver = m.group('ver')
+            if base_id in objmeta:
+                if ver is not None:
+                    url_ver = int(ver)
+                    max_ver = int(objmeta[base_id]['ver'])
+                    if url_ver > max_ver:
+                        return False
                 self.mapping[notebook_id] = notebook_id
                 return True
             else:
@@ -239,6 +251,7 @@ class KBaseWSNotebookManager(NotebookManager):
             wsobj = ws_util.get_wsobj( self.wsclient(), notebook_id, self.ws_type)
         except ws_util.BadWorkspaceID, e:
             raise web.HTTPError(500, u'Notebook %s not found: %s' % (notebook_id, e))
+
         jsonnb = json.dumps(wsobj['data'])
         #self.log.debug("jsonnb = %s" % jsonnb)
         nb = current.reads(jsonnb,u'json')
@@ -442,6 +455,11 @@ for handlerstr in tgt_handlers:
     IPython.html.base.handlers.app_log.debug("Patching routes in %s.default_handler" % handlerstr)
     handler = importlib.import_module(handlerstr)
     handler_route_replace( handler.default_handlers, r'(?P<notebook_id>\w+-\w+-\w+-\w+-\w+)',r'(?P<notebook_id>ws\.\d+\.obj\.\d+)')
+
+    # Crude and ugly seems to be a theme.
+    # patch in an optional handler for ws.XXX.obj.YYY.ver.ZZZ
+    IPython.html.notebook.handlers.default_handlers.append((r'(?P<notebook_id>ws\.\d+\.obj\.\d+\.ver\.\d+)', IPython.html.notebook.handlers.NamedNotebookHandler))
+    IPython.html.services.notebooks.handlers.default_handlers.append((r'/notebooks/(?P<notebook_id>ws\.\d+\.obj\.\d+\.ver\.\d+)', IPython.html.services.notebooks.handlers.NotebookHandler))
 
 # Load the plupload handler
 import upload_handler

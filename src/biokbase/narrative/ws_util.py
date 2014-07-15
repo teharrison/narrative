@@ -14,7 +14,7 @@ import biokbase.workspaceServiceDeluxe
 
 # regex for parsing out workspace_id and object_id from
 # a "ws.{workspace}.{object}" string
-ws_regex = re.compile( '^ws\.(?P<wsid>\d+)\.obj\.(?P<objid>\d+)')
+ws_regex = re.compile( '^ws\.(?P<wsid>\d+)\.obj\.(?P<objid>\d+)(\.ver\.(?P<ver>\d+))?')
 
 # regex for parsing out a user_id from a token
 user_id_regex = re.compile( '^un=(?P<user_id>\w+)\|')
@@ -104,9 +104,13 @@ def get_wsobj( wsclient, ws_id, objtype=None):
     match = ws_regex.match( ws_id)
     if not match:
         raise BadWorkspaceID( "%s does not match workspace ID format ws.{workspace id}.obj.{object id}" % ws_id)
-    ws = match.group(1)
-    objid = match.group(2)
-    objs = wsclient.get_objects( [dict( wsid=ws, objid=objid)])
+    ws = match.group("wsid")
+    objid = match.group("objid")
+    ver = match.group("ver")
+    if (ver is not None):
+        objs = wsclient.get_objects([dict( wsid=ws, objid=objid, ver=ver )])
+    else:
+        objs = wsclient.get_objects( [dict( wsid=ws, objid=objid)])
     if len(objs) < 1:
         raise BadWorkspaceID( "%s could not be found" % ws_id)
     elif len(objs) > 1:
