@@ -190,12 +190,23 @@ This line activates the virtual environment. If you use the [virtualenvwrapper](
 
 Finally, `run_notebook.sh` sets up some environment variables and runs ipython in "notebook" mode with the profile specified in profile_name ("narrative"). The notebooks themselves (i.e. files ending in `.ipynb`) are stored in `~/.narrative`. 
 
-Alternate Installation Procedure
+Simpler Installation Procedure
 --------------------------------
 
 This is an simpler way to install, tailored for devs who are already comfortable with setting up their own virtual environments (virtualenvs). 
 
 1. Set up and activate your desired virtualenv.
-2. Install: `make -f Makefile.narrative`
-3. Run: `run_notebook`
+   a) Use the [virtualenvwrapper package]( http://virtualenvwrapper.readthedocs.org/en/latest/command_ref.html), which
+   provides the _mkvirtualenv_ command.
+   
+        sudo pip install virtualenvwrapper
+        mkvirtualenv narrative # replace 'narrative' with name of your choice
+
+2. Install:
+
+        make -f Makefile.narrative
+    
+3. Run:
+
+        run_notebook
   
