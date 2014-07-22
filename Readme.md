@@ -193,13 +193,9 @@ Finally, `run_notebook.sh` sets up some environment variables and runs ipython i
 Alternate Installation Procedure
 --------------------------------
 
-This is an EXPERIMENTAL way to install, which assumes you have the virtualenv
-already set up and active.
+This is an simpler way to install, tailored for devs who are already comfortable with setting up their own virtual environments (virtualenvs). 
 
-    make -f Makefile.narrative
-
-That is it -- the script file generated is called "run_notebook" instead of
-"run_notebook.sh", and does not require the extra "notebook" argument, so:
-
-    run_notebook
+1. Set up and activate your desired virtualenv.
+2. Install: `make -f Makefile.narrative`
+3. Run: `run_notebook`
   
