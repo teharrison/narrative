@@ -12,3 +12,5 @@ pyyaml>=3.10
 jinja2>=2.7.1
 python-dateutil>=2.2
 paramiko==1.12.1
+thrift
+libgmp>=5
