@@ -439,7 +439,7 @@ def view_phenotype(meth, phenotype_set_id):
 
     :return: Phenotype Set Data
     :rtype: kbtypes.KBasePhenotypes.PhenotypeSet
-    :output_widget:  
+    :output_widget: kbasePhenotypeSet 
     """
     meth.stages = 2  # for reporting progress
     meth.advance("Starting...")
@@ -473,7 +473,7 @@ def view_phenotype(meth, phenotype_set_id):
     
     :return: Phenotype Set Data
     :rtype: kbtypes.KBasePhenotypes.PhenotypeSimulationSet
-    :output_widget: kbasePhenoSimutypeSet
+    :output_widget: kbaseSimulationSet
     """
     meth.stages = 2  # for reporting progress
     meth.advance("Starting...")
@@ -491,10 +491,10 @@ def view_phenotype(meth, phenotype_set_id):
         'workspace' : meth.workspace_id, 'name':phenotype_set_id
     }]
 
-    #data = ws.get_objects(params )
-    #print meth.debug(json.dumps(data))
+    data = ws.get_objects(params)
+    print meth.debug(json.dumps(data))
 
-
+    #return json.dumps({'data': data})
     return json.dumps({'workspace': meth.workspace_id, 'name' : phenotype_set_id})    
 
 @method(name="Import RAST Genomes")
@@ -661,8 +661,8 @@ def _compare_genomes(meth, genome_ids):
     :ui_name model_ids: Genome IDs
 
     :return: Uploaded Genome Comparison Data
-    :rtype: kbtypes.KBaseGenomes.GenomeComparisonData
-    :output_widget: compgenomePa
+    :rtype: kbtypes.KBaseGenomes.GenomeComparison
+    :output_widget: kbasePanGenome
     """
     pid =genome_ids;
     gids = genome_ids.split(',')
@@ -687,8 +687,6 @@ def _compare_genomes(meth, genome_ids):
     #comparegenome = genomeout['genome_comparisons']                               
     #funccomp = genomeout['function_comparisons']
     #print meth.debug(json.dumps(comparegenome))
-    print meth.debug('Here is  Pan genome')
-    print meth.debug(json.dumps(ws, genome_ids))
     return json.dumps({'workspace': meth.workspace_id, 'name':meta[1]})
 
 @method(name="Genome Comparison from Proteome")
@@ -696,11 +694,11 @@ def _compare_genomes(meth, genome_ids):
     """Genome Comparison analysis based on the Proteome Comparison input. 
     
     :param model_ids: ProteomeComparison id
-    :type model_ids: kbtypes.KBaseGenomes.ProteomeComparison
+    :type model_ids: kbtypes.GenomeComparison.ProteomeComparison
     :ui_name model_ids: Genome IDs
 
     :return: Uploaded Genome Comparison Data
-    :rtype: kbtypes.KBaseGenomes.GenomeComparisonData
+    :rtype: kbtypes.KBaseGenomes.GenomeComparison
     :output_widget: compgenomePr
     """
     
