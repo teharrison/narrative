@@ -464,7 +464,7 @@ def view_phenotype(meth, phenotype_set_id):
     return json.dumps({'data': data})
 
 @method(name="View PhenotypeSimulationSet")
-def view_phenotype(meth, phenotype_set_id):
+def view_simulationset(meth, phenotype_set_id):
     """Bring up a detailed view of your PhenotypeSimulationSet within the narrative. 
     
     :param phenotype_set_id: the phenotype set to view
@@ -492,10 +492,10 @@ def view_phenotype(meth, phenotype_set_id):
     }]
 
     data = ws.get_objects(params)
-    print meth.debug(json.dumps(data))
+    #print meth.debug(json.dumps(data))
 
     #return json.dumps({'data': data})
-    return json.dumps({'workspace': meth.workspace_id, 'name' : phenotype_set_id})    
+    return json.dumps({'ws': workspaceName, 'name' : phenotype_set_id})    
 
 @method(name="Import RAST Genomes")
 def _import_rast_genomes(meth, genome_ids, rast_username, rast_password):

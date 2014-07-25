@@ -10,7 +10,6 @@
     init: function(options) {
             this._super(options);
             var self = this;
-            var container = this.$elem
             var ws = options.ws;
             var name = options.name;
 
