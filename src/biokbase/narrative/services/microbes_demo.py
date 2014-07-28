@@ -550,16 +550,10 @@ def _simulate_phenotype(meth, model, phenotypeSet, phenotypeSimulationSet):
     
     return json.dumps({'name': name, 'ws': workspaceName})
 
-<<<<<<< HEAD
-@method(name="View PhenotypeSimulationSet")
-def view_simulationset(meth, phenotype_set_id):
-    """Bring up a detailed view of your PhenotypeSimulationSet within the narrative. 
-=======
+
 @method(name="View Phenotype Simulation Results")
 def view_phenotype(meth, phenotype_set_id):
     """Bring up a detailed view of your Phenotype Simulation results within the narrative. 
->>>>>>> dev
-    
     :param phenotype_set_id: the phenotype results to view
     :type phenotype_set_id: kbtypes.KBasePhenotypes.PhenotypeSimulationSet
     :ui_name phenotype_set_id: Phenotype Simulation Set
@@ -577,7 +571,7 @@ def view_phenotype(meth, phenotype_set_id):
     
     ws = workspaceService(service.URLS.workspace, token=userToken)
 
-<<<<<<< HEAD
+
     params = [{
         'workspace' : meth.workspace_id, 'name':phenotype_set_id
     }]
@@ -586,10 +580,7 @@ def view_phenotype(meth, phenotype_set_id):
     #print meth.debug(json.dumps(data))
 
     #return json.dumps({'data': data})
-    return json.dumps({'ws': workspaceName, 'name' : phenotype_set_id})    
-=======
     return json.dumps({'ws': meth.workspace_id, 'name' : phenotype_set_id})    
->>>>>>> dev
 
 @method(name="Import RAST Genomes")
 def _import_rast_genomes(meth, genome_ids, rast_username, rast_password):
