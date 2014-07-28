@@ -85,7 +85,6 @@ function KBCacheClient(token) {
     var auth = {};
     auth.token = token;
 
-    console.log('configjson', typeof configJSON )
     /*
     if (typeof configJSON != 'undefined') {
         if (configJSON.setup == 'dev') {
@@ -696,6 +695,7 @@ function UIUtils() {
                 var type = full_type.slice(full_type.indexOf('.')+1);
                 var kind = type.split('-')[0];
                 var label = item[7]+"/"+item[1];
+		var route;
 
                 switch (kind) {
                     case 'FBA': 

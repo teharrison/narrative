@@ -21,6 +21,7 @@ from biokbase.InvocationService.Client import InvocationService
 from biokbase.fbaModelServices.Client import fbaModelServices
 from biokbase.GenomeComparison.Client import GenomeComparison
 from biokbase.assembly.client import Client as ArastClient
+from biokbase.KBaseTrees.Client import KBaseTrees
 
 ## Globals
 
@@ -45,7 +46,7 @@ def _assemble_contigs(meth, asm_input):
     """
     ws = os.environ['KB_WORKSPACE_ID']
     token = os.environ['KB_AUTH_TOKEN']
-    arURL = 'http://140.221.84.124:8000/'
+    arURL = 'http://kbase.us/services/assembly/'
     ar_user = token.split('=')[1].split('|')[0]
 
     wsClient = workspaceService(service.URLS.workspace, token=token)
@@ -59,6 +60,7 @@ def _assemble_contigs(meth, asm_input):
                        "ar_user" : ar_user,
                        "ar_token" : token,
                        "ws_url" : service.URLS.workspace,
+                       "ws_name" : os.environ['KB_WORKSPACE_ID'],
                        "kbase_assembly_input": asm_data['data']})
 
 @method(name="Get Contigs from Assembly Service")
@@ -360,6 +362,22 @@ def _show_genome(meth, genome):
     token, workspaceName = meth.token, meth.workspace_id
     return json.dumps({'ws_name': workspaceName, 'ws_id': genome})
 
+@method(name="View SEED Functions")
+def _show_SEED_functional_categories(meth, genome):
+    """View and explore the SEED Functional categories associated with genes in your genome.
+
+    :param genome: select the genome you want to view
+    :type genome: kbtypes.KBaseGenomes.Genome
+    :ui_name genome: Genome
+    :return: Same genome ID
+    :rtype: kbtypes.KBaseGenomes.Genome
+    :output_widget: KBaseSEEDFunctions
+    """
+    meth.stages = 1
+    meth.advance("Loading the genome")
+    token, workspaceName = meth.token, meth.workspace_id
+    return json.dumps({ 'wsNameOrId': workspaceName, 'objNameOrId': genome})
+
 @method(name="Build a Metabolic Model")
 def _genome_to_fba_model(meth, genome_id, fba_model_id):
     """Given an annotated Genome, build a draft metabolic model which can be analyzed with FBA. [6]
@@ -428,6 +446,43 @@ def _genome_to_fba_model(meth, genome_id, fba_model_id):
     #meth.advance("Displaying your new FBA model details")
     return json.dumps({'id': model_name, 'ws': workspaceName})
 
+@method(name="Translate Model to New Genome")
+def _translate_model_to_new_genome(meth, fba_model_id, proteome_cmp, output_id):
+    """ Functionality to assign a new genome to an imported model. 
+    A proteome comparison is done between the orginal model genome 
+    and the new desired genome. Metoblic reactions from original model 
+    get mapped to genes in the new genome'.  [19]
+     
+    :param fba_model_id: an FBA model id from first genome [19.1]
+    :type fba_model_id: kbtypes.KBaseFBA.FBAModel
+    :ui_name fba_model_id: FBA Model ID
+
+    :param proteome_cmp: Proteome comparison ID [19.3]
+    :type proteome_cmp: kbtypes.GenomeComparison.ProteomeComparison
+    :ui_name proteome_cmp: Proteome Comparison ID
+
+    :param output_id: ID to which translated model should be saved
+    :type output_id: kbtypes.KBaseFBA.FBAModel
+    :ui_name output_id: Translated Model ID
+    
+    :return: Output Translated Model
+    :rtype: kbtypes.KBaseFBA.FBAModel
+    :output_widget: kbaseModelTabs
+    """
+    meth.stages = 1  # for reporting progress
+    token = os.environ['KB_AUTH_TOKEN']
+    workspace = os.environ['KB_WORKSPACE_ID']
+    fbaClient = fbaModelServices(url = "http://140.221.85.73:4043", token = token)
+    translate_params = {
+                         'protcomp' : proteome_cmp,
+                         'model' : fba_model_id,
+                         'workspace' : workspace,
+                         'output_id' : output_id
+                         }
+    modeldata = fbaClient.translate_fbamodel(translate_params)
+    
+    return json.dumps({'ws': workspace, 'id': output_id})
+
 
 @method(name="View PhenotypeSet")
 def view_phenotype(meth, phenotype_set_id):
@@ -448,20 +503,52 @@ def view_phenotype(meth, phenotype_set_id):
     userToken, workspaceName = meth.token, meth.workspace_id;
     meth.advance("Loading the phenotype set")
     
-    ws = os.environ['KB_WORKSPACE_ID']
-    token = os.environ['KB_AUTH_TOKEN']
-    ar_user = token.split('=')[1].split('|')[0]
-    ws = workspaceService(service.URLS.workspace, token=token)
 
-    params = [{
-        'workspace' : meth.workspace_id, 'name':phenotype_set_id
-    }]
+    return json.dumps({'ws': meth.workspace_id, 'name': phenotype_set_id})
 
-    data = ws.get_objects(params )
-    #print meth.debug(json.dumps(data))
+@method(name="Simulate growth on a Phenotype Set")
+def _simulate_phenotype(meth, model, phenotypeSet, phenotypeSimulationSet):
+    """Simulate the growth of a model on a phenotype set.
 
+    :param model: FBA model
+    :type model: kbtypes.KBaseFBA.FBAModel
+    :ui_name model: FBA Model
+    
+    :param phenotypeSet: Phenotype Set
+    :type phenotypeSet: kbtypes.KBasePhenotypes.PhenotypeSet
+    :ui_name phenotypeSet: Phenotype Set
+    
+    :param phenotypeSimulationSet: Name for result of phenotype simulation (optional)
+    :type phenotypeSimulationSet: kbtypes.KBasePhenotypes.PhenotypeSimulationSet
+    :ui_name phenotypeSimulationSet: Phenotype Simulation Result
+    
+    :return: Generated Phenotype Simulation Set ID
+    :rtype: kbtypes.KBasePhenotypes.PhenotypeSimulationSet
+    :output_widget: kbaseSimulationSet
+    """
+    meth.stages = 2  # for reporting progress
+    meth.advance("Starting")
+    meth.advance("Simulating Phenotypes")
+    
+    #grab token and workspace info, setup the client
+    userToken, workspaceName = meth.token, meth.workspace_id
+    fbaClient = fbaModelServices(service.URLS.fba,token=userToken)
+    
+    # create the model object
+    simulate_phenotypes_params = {
+        'workspace': workspaceName, 
+        'phenotypeSimulationSet': phenotypeSimulationSet,
+        'model_workspace': workspaceName,
+        'model': model,
+        'phenotypeSet_workspace': workspaceName,
+        'phenotypeSet': phenotypeSet,
+    }
 
-    return json.dumps({'data': data})
+    fba_meta_data = fbaClient.simulate_phenotypes(simulate_phenotypes_params)
+    wsobj_id = fba_meta_data[0]
+    name = fba_meta_data[1]
+    
+    return json.dumps({'name': name, 'ws': workspaceName})
 
 @method(name="View PhenotypeSimulationSet")
 def view_simulationset(meth, phenotype_set_id):
@@ -516,6 +603,7 @@ def _import_rast_genomes(meth, genome_ids, rast_username, rast_password):
     :return: Uploaded RAST Genome
     :rtype: kbtypes.Unicode
     :output_widget: GenomeAnnotation
+    :input_widget: rastGenomeImportInput
     """
     #315750.3
     gids = genome_ids.split(',')
@@ -581,7 +669,7 @@ def _compare_pan_genome(meth, genome_ids):
 
     :return: Generated Compare Genome
     :rtype: kbtypes.KBaseGenomes.Pangenome
-    :output_widget: kbasepangenome
+    :output_widget: kbasePanGenome
     """
     
     gids = genome_ids.split(',')
@@ -613,7 +701,7 @@ def _compare_pan_genome(meth, genome_ids):
     #print meth.debug(json.dumps(data))
 
     #return json.dumps({'data': data})
-    return json.dumps({'workspace': meth.workspace_id, 'name':meta[1]})
+    return json.dumps({'ws': meth.workspace_id, 'name':meta[1]})
 
 @method(name="Compare Models")
 def _compare_models(meth, model_ids):
@@ -755,6 +843,59 @@ def _view_model_details(meth, fba_model_id):
     #modeldata = fbaClient.get_models(get_models_params)
     return json.dumps({'id': fba_model_id, 'ws': workspaceName})
 
+@method(name="Delete Reaction")
+def _delete_reaction(meth, fba_model_id, reaction_id, output_id):
+    """Delete reactions from selected Metabolic Model 
+    
+    :param fba_model_id: the metabolic model to edit
+    :type fba_model_id: kbtypes.KBaseFBA.FBAModel
+    :ui_name fba_model_id: Metabolic Model
+
+    :param reaction_id: Reactions to be deleted. Add multiple reactions seperated by ; 
+    :type reaction_id: kbtypes.Unicode
+    :ui_name reaction_id: Reaction(s) ID(s)
+
+    :param output_id: ID of model with deleted reactions
+    :type output_id: kbtypes.KBaseFBA.FBAModel
+    :ui_name output_id: Edited Model
+
+    :return: Metabolic Model Data
+    :rtype: kbtypes.Model
+    :output_widget: kbaseModelTabs    
+    """
+    meth.debug('delete reaction call')
+
+    meth.stages = 2  # for reporting progress
+    meth.advance("Starting...")
+    
+    #grab token and workspace info, setup the client
+    token, ws = meth.token, meth.workspace_id;
+    #meth.advance("Loading the phenotype set")
+    #
+    fba = fbaModelServices(service.URLS.fba, token=token)
+
+    meth.debug(output_id)
+    if output_id:
+        params = {'model': fba_model_id, 
+                   'workspace': ws,
+                   'reaction' : reaction_id.split(';'), 
+                   'removeReaction': 1,
+                   'outputid': output_id }
+    else:
+        params = {'model': fba_model_id, 
+                   'workspace': ws,
+                   'reaction' : reaction_id.split(';'), 
+                   'removeReaction': 1}
+
+
+    data = fba.adjust_model_reaction(params)
+
+    if output_id:
+        data = json.dumps({'id': output_id, 'ws': ws})
+    else:
+        data = json.dumps({'id': fba_model_id, 'ws': ws})        
+
+    return data
 
 @method(name="Build Media")
 def _build_media(meth, media):
@@ -828,7 +969,7 @@ def _view_media(meth, media_id):
     return json.dumps(result)
 
 @method(name="Run Flux Balance Analysis")
-def _run_fba(meth, fba_model_id, media_id, fba_result_id, geneko, rxnko, defaultmaxflux, defaultminuptake, defaultmaxuptake, minimizeFlux, maximizeObjective, allreversible):
+def _run_fba(meth, fba_model_id, media_id, fba_result_id, geneko, rxnko, defaultmaxflux, defaultminuptake, defaultmaxuptake, minimizeFlux, maximizeObjective, allreversible, prom):
     """Run Flux Balance Analysis on a metabolic model. [10]
 
     :param fba_model_id: the metabolic model you wish to run [10.1]
@@ -881,6 +1022,10 @@ def _run_fba(meth, fba_model_id, media_id, fba_result_id, geneko, rxnko, default
     :ui_name allreversible: All rxns reversible?
     :default allreversible: no
     
+    :param prom: specify the PROM constraint to apply for regulation of the metabolic model  (optional) [10.12]
+    :type prom: kbtypes.KBaseFBA.PromConstraint
+    :ui_name prom: PROM constraint
+    
     :return: something 
     :rtype: kbtypes.Unicode
     :output_widget: kbaseFbaTabsNarrative
@@ -919,8 +1064,8 @@ def _run_fba(meth, fba_model_id, media_id, fba_result_id, geneko, rxnko, default
     typedef structure {
         media_id media;
         list<compound_id> additionalcpds;
-        prommodel_id prommodel;
-        workspace_id prommodel_workspace;
+	promconstraint_id promconstraint;
+	workspace_id promconstraint_workspace;
         workspace_id media_workspace;
         float objfraction;
         bool allreversible;
@@ -964,10 +1109,10 @@ def _run_fba(meth, fba_model_id, media_id, fba_result_id, geneko, rxnko, default
     if fba_result_id:
         fba_params['fba'] = fba_result_id
     if geneko:
-        fba_params['simulateko'] = 1
+        fba_params['simulateko'] = 0
         fba_params['formulation']['geneko']=geneko.split(";")
     if rxnko:
-        fba_params['simulateko'] = 1
+        fba_params['simulateko'] = 0
         fba_params['formulation']['rxnko']=rxnko.split(";")
     if maximizeObjective=='0' or maximizeObjective=='false' or maximizeObjective=='no':
         fba_params['formulation']['maximizeObjective'] = 0
@@ -984,6 +1129,9 @@ def _run_fba(meth, fba_model_id, media_id, fba_result_id, geneko, rxnko, default
     else:  
         fba_params['formulation']['allreversible'] = 0
         
+    if prom:
+        fba_params['formulation']['promconstraint'] = prom
+        fba_params['formulation']['promconstraint_workspace'] = workspaceName
 
     if defaultmaxflux:
         try:
@@ -1010,6 +1158,7 @@ def _run_fba(meth, fba_model_id, media_id, fba_result_id, geneko, rxnko, default
     meth.debug(json.dumps(fba_params))
 
     meth.advance("Running FBA")
+    fbaClient = fbaModelServices("http://140.221.85.73:4043",token=userToken)
     result_meta = fbaClient.runfba(fba_params)
     generated_fba_id = result_meta[0]
     
@@ -1063,8 +1212,27 @@ def _view_fba_result_details(meth, fba_id):
     
     return json.dumps({ "ids":[fba_id],"workspaces":[workspaceName] })
 
+@method(name="Compare FBA Results")
+def _compare_fbas(meth, fba_id1, fba_id2):
+    """Compare two FBA results, showing differences in fluxes for reactions.
+    
+    :param fba_id1: First FBA result
+    :type fba_id1: kbtypes.KBaseFBA.FBA
+    :ui_name fba_id1: First FBA result
 
+    :param fba_id2: Second FBA result
+    :type fba_id2: kbtypes.KBaseFBA.FBA
+    :ui_name fba_id2: Second FBA result
 
+    :return: FBA Result Comparison Data
+    :rtype: kbtypes.Unicode
+    :output_widget: kbaseCompareFBAs
+    """
+
+    meth.stages = 2 # for reporting progress
+    meth.advance("Starting...")
+    
+    return json.dumps({'ids': [fba_id1, fba_id2],"ws": meth.workspace_id})
 
 @method(name="Gapfill a Metabolic Model")
 def _gapfill_fba(meth, fba_model_id, media_id, solution_limit, total_time_limit, solution_time_limit):
@@ -1328,42 +1496,7 @@ def _upload_phenotype(meth, genome_id, phenotype_id):
         phenotype_id = "phenotype_" + ''.join([chr(random.randrange(0, 26) + ord('A')) for _ in xrange(8)])
     token = os.environ['KB_AUTH_TOKEN']
     workspace = os.environ['KB_WORKSPACE_ID']
-    return json.dumps({'token': token, 'ws_name': workspace, 'genome_id': genome_id, 'phenotype_id': phenotype_id})
-
-#@method(name="Simulate Phenotype Data")
-def _simulate_phenotype(meth, fba_model_id, phenotype_id, simulation_id):
-    """Simulate some phenotype on an FBA model [15]
-
-    :param fba_model_id: an FBA model id [15.1]
-    :type fba_model_id: kbtypes.KBaseFBA.FBAModel
-    :ui_name fba_model_id: FBA Model ID
-    :param phenotype_id: a phenotype ID [15.2]
-    :type phenotype_id: kbtypes.KBasePhenotypes.PhenotypeSet
-    :ui_name phenotype_id: Phenotype Dataset ID
-    :param simulation_id: an output simulation ID [15.3]
-    :type simulation_id: kbtypes.KBasePhenotypes.PhenotypeSimulationSet
-    :ui_name simulation_id: Phenotype Simulation ID
-    :return: something
-    :rtype: kbtypes.Unicode
-    :output_widget: PhenotypeSimulation
-    """
-
-    if not simulation_id:
-        simulation_id = "simulation_" + ''.join([chr(random.randrange(0, 26) + ord('A')) for _ in xrange(8)])
-    token = os.environ['KB_AUTH_TOKEN']
-    workspace = os.environ['KB_WORKSPACE_ID']
-    fbaClient = fbaModelServices(service.URLS.fba)
-    simulate_phenotypes_params = {
-        'auth': token, 
-        'workspace': workspace, 
-        'phenotypeSimultationSet': simulation_id,
-        'model_workspace': workspace,
-        'model': fba_model_id,
-        'phenotypeSet_workspace': workspace,
-        'phenotypeSet': phenotype_id,
-    }
-    fbaClient.simulate_phenotypes(simulate_phenotypes_params)
-    return json.dumps({'token': token, 'ws_name': workspace, 'simulation_id': simulation_id})
+    return json.dumps({'ws_name': workspace, 'genome_id': genome_id, 'phenotype_id': phenotype_id})
 
 #@method(name="Reconcile Phenotype Data")
 def _reconcile_phenotype(meth, fba_model_id, phenotype_id, out_model_id):
@@ -1398,7 +1531,7 @@ def _reconcile_phenotype(meth, fba_model_id, phenotype_id, out_model_id):
         'out_model': out_model_id,
     }
     job_id = fbaClient.queue_wildtype_phenotype_reconciliation(wildtype_phenotype_reconciliation_params)['id']
-    return json.dumps({'token': token, 'ws_name': workspace, 'model_id': out_model_id, 'job_id': job_id})
+    return json.dumps({'ws_name': workspace, 'model_id': out_model_id, 'job_id': job_id})
 
 @method(name="Compare Two Proteomes")
 def _compare_proteomes(meth, genome1, genome2, out_proteome_cmp):
@@ -1484,6 +1617,152 @@ def _compare_fba_models(meth, fba_model1, fba_model2, proteome_cmp):
     #model2 = modeldata[1]
     return json.dumps({'ws_name': workspace, 'fba_model1_id': fba_model1, 'fba_model2_id': fba_model2, 'proteome_cmp': proteome_cmp})
 
+@method(name="Insert Genome into Species Tree")
+def _insert_genome_into_species_tree(meth, genome, neighbor_count, out_tree):
+    """ Insert a Genome into a global genome tree composed of 49 conserved COGs [20]
+
+    :param genome: a Genome to insert into the tree [20.1]
+    :type genome: kbtypes.KBaseGenomes.Genome
+    :ui_name genome: Genome ID
+    :param neighbor_count: number of closest public genomes the tree will contain. (optional, default value is 100) [20.2]
+    :type neighbor_count: kbtypes.Unicode
+    :ui_name neighbor_count: Neighbor public genome count
+    :param out_tree: Output species tree ID. If empty, an ID will be chosen randomly. [20.3]
+    :type out_tree: kbtypes.KBaseTrees.Tree
+    :ui_name out_tree: Output species tree ID
+    :return: Species Tree Result
+    :rtype: kbtypes.Unicode
+    :output_widget: kbaseTree
+    """
+    meth.stages = 1
+    token, workspace = meth.token, meth.workspace_id
+    if not out_tree:
+        out_tree = "sptree_" + ''.join([chr(random.randrange(0, 26) + ord('A')) for _ in xrange(8)])
+    treeClient = KBaseTrees(url = service.URLS.trees, token = token)
+    construct_species_tree_params = {
+        'new_genomes': [workspace + '/' + genome], 
+        'use_ribosomal_s9_only': 0, 
+        'out_workspace': workspace, 
+        'out_tree_id': out_tree, 
+    }
+    if neighbor_count:
+        construct_species_tree_params['nearest_genome_count'] = int(neighbor_count)
+    job_id = treeClient.construct_species_tree(construct_species_tree_params)
+    return json.dumps({'treeID': out_tree, 'workspaceID': workspace, 'height':'500px', 'jobID': job_id})
+
+@method(name="View Species Tree")
+def _view_species_tree(meth, tree_id):
+    """ View a Species Tree from your workspace [21]
+
+    :param tree_id: a Species Tree id [21.1]
+    :type tree_id: kbtypes.KBaseTrees.Tree
+    :ui_name tree_id: Tree ID
+    :return: Species Tree Result
+    :rtype: kbtypes.Unicode
+    :output_widget: kbaseTree
+    """
+    meth.stages = 1
+    workspace = meth.workspace_id
+    return json.dumps({'treeID': tree_id, 'workspaceID': workspace, 'height':'500px'})
+
+@method(name="Build Genome Set Object")
+def _build_genome_set(meth, out_genome_set):
+    """ Construct a Genome Set object [22]
+
+    :param out_genome_set: Output genome set ID. If empty, an ID will be chosen randomly. [22.1]
+    :type out_genome_set: kbtypes.KBaseSearch.GenomeSet
+    :ui_name out_genome_set: Output genome set ID
+    :return: Genome set Result
+    :rtype: kbtypes.Unicode
+    :output_widget: kbaseGenomeSetBuilder
+    """
+    meth.stages = 1
+    token, workspace = meth.token, meth.workspace_id
+    if not out_genome_set:
+        out_genome_set = "genome_set_" + ''.join([chr(random.randrange(0, 26) + ord('A')) for _ in xrange(8)])
+    return json.dumps({'genomeSetName': out_genome_set, 'wsName': workspace})
+
+@method(name="Insert Set of Genomes into Species Tree")
+def _insert_genome_set_into_species_tree(meth, genome_set, neighbor_count, out_tree):
+    """ Insert a Genome Set into a global genome tree composed of 50 conserved COGs [23]
+
+    :param genome_set: a Genome Set to insert into the tree [23.1]
+    :type genome_set: kbtypes.KBaseSearch.GenomeSet
+    :ui_name genome_set: Genome Set ID
+    :param neighbor_count: number of closest public genomes the tree will contain. (optional, default value is 100) [23.2]
+    :type neighbor_count: kbtypes.Unicode
+    :ui_name neighbor_count: Neighbor public genome count
+    :param out_tree: Output species tree ID. If empty, an ID will be chosen randomly. [23.3]
+    :type out_tree: kbtypes.KBaseTrees.Tree
+    :ui_name out_tree: Output species tree ID
+    :return: Species Tree Result
+    :rtype: kbtypes.Unicode
+    :output_widget: kbaseTree
+    """
+    meth.stages = 1
+    token, workspace = meth.token, meth.workspace_id
+    if not out_tree:
+        out_tree = "sptree_" + ''.join([chr(random.randrange(0, 26) + ord('A')) for _ in xrange(8)])
+    
+    ws = workspaceService(service.URLS.workspace, token=token)
+    data = ws.get_objects([{'ref': workspace+'/'+genome_set}])[0]
+    genome_set_elements = data['data']['elements']
+    genome_refs = []
+    for key in genome_set_elements:
+        genome_refs.append(genome_set_elements[key]['ref'])
+    treeClient = KBaseTrees(url = service.URLS.trees, token = token)
+    construct_species_tree_params = {
+        'new_genomes': genome_refs, 
+        'use_ribosomal_s9_only': 0, 
+        'out_workspace': workspace, 
+        'out_tree_id': out_tree, 
+    }
+    if neighbor_count:
+        construct_species_tree_params['nearest_genome_count'] = int(neighbor_count)
+    job_id = treeClient.construct_species_tree(construct_species_tree_params)
+    return json.dumps({'treeID': out_tree, 'workspaceID': workspace, 'height':'500px', 'jobID': job_id})
+
+@method(name="Build a PROM constraint")
+def _build_promconstraint(meth, genome_id, series_id, regulome_id):
+    """Given a gene expression series and a regulome, build a PROM constraint for FBA. [24]
+
+    :param genome_id: Genome ID [24.1]
+    :type genome_id: kbtypes.KBaseGenomes.Genome
+    :ui_name genome_id: Genome Name
+    
+    :param series_id: Gene Expression Series ID [24.2]
+    :type series_id: kbtypes.KBaseExpression.ExpressionSeries
+    :ui_name series_id: Gene Expression Series Name
+    
+    :param regulome_id: Regulome ID [24.3]
+    :type regulome_id: kbtypes.KBaseRegulation.Regulome
+    :ui_name regulome_id: Regulome Name
+    
+    :return: Generated PROM constraint ID
+    :rtype: kbtypes.KBaseFBA.PromConstraint
+    :output_widget: kbasePromConstraint
+    """
+    meth.stages = 2  # for reporting progress
+    meth.advance("Starting")
+    meth.advance("Building your new PROM constraint")
+    
+    #grab token and workspace info, setup the client
+    userToken, workspaceName = meth.token, meth.workspace_id
+    fbaClient = fbaModelServices("http://140.221.85.73:4043",token=userToken)
+    
+    # create the model object
+    build_pc_params = {
+        'genome_id': genome_id,
+        'series_id': series_id,
+        'regulome_id': regulome_id,
+        'workspace': workspaceName
+    }
+
+    fba_meta_data = fbaClient.create_promconstraint(build_pc_params)
+    wsobj_id = fba_meta_data[0]
+    name = fba_meta_data[1]
+    
+    return json.dumps({'name': name, 'ws': workspaceName})
 
 #
 #@method(name="Edit Data")

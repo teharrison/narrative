@@ -1124,33 +1124,9 @@
             for (var i=0; i<cells.length; i++) {
                 this.checkCellMetadata(cells[i]);
             }
+            this.loadAllRecentCellStates();
             this.trigger('updateData.Narrative');
             return this;
-        },
-
-        /**
-         * Log in to all the widgets.
-         *
-         * @param token
-         * @returns this
-         */
-        loggedIn: function(token) {
-            // this.ws_client = new workspaceService(this.options.workspaceURL);
-            // this.ws_auth = token;
-            // var un = token.match(/un=[\w_]+|/);
-            // this.ws_user = un[0].substr(3, un[0].length - 3);
-            // grab ws_id to give to, e.g., upload widget
-
-            //this.dataTableWidget.loggedIn(this.ws_client, this.ws_auth).ws_id;
-
-
-            // this.workspace("id", this.ws_id); // add to global accessor
-
-
-            // create/refresh the upload dialog, which needs login to populate types
-//            this.uploadWidget = this.uploadWidget_dlg.kbaseUploadWidget(this.uploadWidget_opts);
-            //this.uploadWidget.createDialog(); -- redundant
-            this.render();
         },
 
         /**
