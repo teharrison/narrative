@@ -29,14 +29,14 @@ M.private_port = 8888
 M.syslog_src = '/dev/log'
 
 --
---  Query the docker container for a list of containers and
+-- Query the docker container for a list of containers and
 -- return a list of the container names that have listeners on
 -- port 8888. Keyed on container name, value is IP:Port that can
 -- be fed into an nginx proxy target
 local function get_notebooks()
-    local ok, res = pcall(docker.client.containers,docker.client)
+    local ok, res = pcall(docker.client.containers, docker.client)
     local portmap = {}
-    ngx.log( ngx.DEBUG, string.format("list containers result: %s",p.write(res.body)))
+    ngx.log(ngx.DEBUG, string.format("list containers result: %s",p.write(res.body)))
     if ok then
         for index,container in pairs(res.body) do
             -- we only care about containers matching repository_image and listening on the proper port

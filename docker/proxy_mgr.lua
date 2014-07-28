@@ -222,8 +222,8 @@ marker = function(self)
 
     for key = 1, #keys do
         name = keys[key]
-        local target = proxy_map:get( name)
-        ngx.log( ngx.INFO, string.format("Checking %s -> %s", name, target))
+        local target = proxy_map:get(name)
+        ngx.log(ngx.INFO, string.format("Checking %s -> %s", name, target))
         if conn[target] then
             ngx.log( ngx.INFO, string.format("Found %s among current connections", name))
             success, err = proxy_last:set(name, now)
@@ -232,11 +232,11 @@ marker = function(self)
                          name,err ))
             end
         else -- not among current connections, check for reaping
-            local last, flags = proxy_last:get( name)
+            local last, flags = proxy_last:get(name)
             if last <= timeout then
                 -- reap it
                 ngx.log( ngx.INFO, string.format("Marking %s for reaping - last seen %s",
-                name,os.date("%c",last)))
+                         name,os.date("%c",last)))
                 proxy_state:set(name,false)
             end
         end
@@ -513,6 +513,7 @@ get_session = function()
         -- trivial as a .png or .css file, calculating and comparing an MD5
         -- hash of the token would start to be costly given how many GETs
         -- there are on a given page load.
+
         -- So we cache the token itself. This is a security vulnerability,
         -- however the exposure would require a hacker of fairly high end
         -- skills (or someone who has read the source code...)
