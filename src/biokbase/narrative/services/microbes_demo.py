@@ -484,9 +484,9 @@ def _translate_model_to_new_genome(meth, fba_model_id, proteome_cmp, output_id):
     return json.dumps({'ws': workspace, 'id': output_id})
 
 
-@method(name="View PhenotypeSet")
+@method(name="View Phenotype Set")
 def view_phenotype(meth, phenotype_set_id):
-    """Bring up a detailed view of your phenotypeset within the narrative. 
+    """Bring up a detailed view of your phenotype set within the narrative. 
     
     :param phenotype_set_id: the phenotype set to view
     :type phenotype_set_id: kbtypes.KBasePhenotypes.PhenotypeSet
@@ -550,15 +550,21 @@ def _simulate_phenotype(meth, model, phenotypeSet, phenotypeSimulationSet):
     
     return json.dumps({'name': name, 'ws': workspaceName})
 
+<<<<<<< HEAD
 @method(name="View PhenotypeSimulationSet")
 def view_simulationset(meth, phenotype_set_id):
     """Bring up a detailed view of your PhenotypeSimulationSet within the narrative. 
+=======
+@method(name="View Phenotype Simulation Results")
+def view_phenotype(meth, phenotype_set_id):
+    """Bring up a detailed view of your Phenotype Simulation results within the narrative. 
+>>>>>>> dev
     
-    :param phenotype_set_id: the phenotype set to view
+    :param phenotype_set_id: the phenotype results to view
     :type phenotype_set_id: kbtypes.KBasePhenotypes.PhenotypeSimulationSet
-    :ui_name phenotype_set_id: Phenotype Set
+    :ui_name phenotype_set_id: Phenotype Simulation Set
     
-    :return: Phenotype Set Data
+    :return: Phenotype Simulation Set Data
     :rtype: kbtypes.KBasePhenotypes.PhenotypeSimulationSet
     :output_widget: kbaseSimulationSet
     """
@@ -567,13 +573,11 @@ def view_simulationset(meth, phenotype_set_id):
     
     #grab token and workspace info, setup the client
     userToken, workspaceName = meth.token, meth.workspace_id;
-    meth.advance("Loading the phenotypeSimultationSet")
+    meth.advance("Loading the phenotype simulation results")
     
-    #ws = os.environ['KB_WORKSPACE_ID']
-    #token = os.environ['KB_AUTH_TOKEN']
-    #ar_user = token.split('=')[1].split('|')[0]
     ws = workspaceService(service.URLS.workspace, token=userToken)
 
+<<<<<<< HEAD
     params = [{
         'workspace' : meth.workspace_id, 'name':phenotype_set_id
     }]
@@ -583,6 +587,9 @@ def view_simulationset(meth, phenotype_set_id):
 
     #return json.dumps({'data': data})
     return json.dumps({'ws': workspaceName, 'name' : phenotype_set_id})    
+=======
+    return json.dumps({'ws': meth.workspace_id, 'name' : phenotype_set_id})    
+>>>>>>> dev
 
 @method(name="Import RAST Genomes")
 def _import_rast_genomes(meth, genome_ids, rast_username, rast_password):
