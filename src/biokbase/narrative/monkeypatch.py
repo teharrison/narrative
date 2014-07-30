@@ -79,12 +79,17 @@ def do_patching( c ):
             """
             cookierx = re.compile('([^ =|]+)=([^\|]*)')
             """ Parser for Jim Thomason's login widget cookies """
+
+            # Need a little checking here. We might be getting a couple of similar cookies named 'kbase_session'
+            # One of which just has the session id, and no token.
+            # In order to get here, at least ONE of the cookies should  work.
+            print 'COOKIE PUSHER'
+            print cookie
+            
             sess = { k : v.replace('EQUALSSIGN','=').replace('PIPESIGN','|')
                      for k,v in cookierx.findall(urllib.unquote(cookie)) }
             IPython.html.base.handlers.app_log.debug("user_id = " + sess.get('token','None'))
             IPython.html.base.handlers.app_log.debug("token = " + sess.get('token','None'))
-            print "SESSION"
-            print sess
             
             setattr(handler,'kbase_session', sess)
             # also push the token into the environment hash so that KBase python clients pick it up
