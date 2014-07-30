@@ -85,7 +85,7 @@ def do_patching( c ):
             # In order to get here, at least ONE of the cookies should  work.
             print 'COOKIE PUSHER'
             print cookie
-            
+
             sess = { k : v.replace('EQUALSSIGN','=').replace('PIPESIGN','|')
                      for k,v in cookierx.findall(urllib.unquote(cookie)) }
             IPython.html.base.handlers.app_log.debug("user_id = " + sess.get('token','None'))
@@ -95,6 +95,7 @@ def do_patching( c ):
             # also push the token into the environment hash so that KBase python clients pick it up
             biokbase.auth.set_environ_token(sess.get('token','None'))
 
+
         IPython.html.base.handlers.app_log.debug("Monkeypatching IPython.html.notebook.handlers.NamedNotebookHandler.get() in process {}".format(os.getpid()))
         old_get = IPython.html.notebook.handlers.NamedNotebookHandler.get
 
@@ -103,10 +104,11 @@ def do_patching( c ):
             IPython.html.base.handlers.app_log.debug("notebook_id = " + notebook_id)
             if 'kbase_session' in self.cookies and hasattr(self,'notebook_manager'):
                 print "COOKIE"
-                print self.cookies 
+                print self.cookies.keys()
                 IPython.html.base.handlers.app_log.debug("kbase_session = " + self.cookies['kbase_session'].value)
                 cookie_pusher(self.cookies['kbase_session'].value, getattr(self,'notebook_manager'))
             return old_get(self,notebook_id)
+
 
         IPython.html.base.handlers.app_log.debug("Monkeypatching IPython.html.services.notebooks.handlers.NotebookRootHandler.get() in process {}".format(os.getpid()))
         old_get1 = IPython.html.services.notebooks.handlers.NotebookRootHandler.get
@@ -115,6 +117,7 @@ def do_patching( c ):
             if 'kbase_session' in self.cookies:
                 cookie_pusher(self.cookies['kbase_session'].value,getattr(self,'notebook_manager'))
             return old_get1(self)
+
 
     IPython.html.base.handlers.app_log.debug("Monkeypatching IPython.html.base.handlers.RequestHandler.write_error() in process {}".format(os.getpid()))
     # Patch RequestHandler to deal with errors and render them in a half-decent

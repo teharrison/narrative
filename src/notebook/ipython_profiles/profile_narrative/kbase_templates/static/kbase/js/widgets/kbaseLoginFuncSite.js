@@ -991,8 +991,8 @@
                                                            '|kbase_sessionid=' + data.kbase_sessionid +
                                                            '|user_id=' + data.user_id +
                                                            '|token=' + data.token.replace(/=/g, 'EQUALSSIGN').replace(/\|/g, 'PIPESIGN');
-                                        $.cookie(this.cookieName, cookieString, { path: '/', domain: 'kbase.us', expires: 60 });
                                         $.cookie(this.cookieName, cookieString, { path: '/', expires: 60 });
+                                        $.cookie(this.cookieName, cookieString, { path: '/', domain: 'kbase.us', expires: 60 });
                                     }
 
                                     this.trigger('loggedIn', this.get_kbase_cookie());
@@ -1056,7 +1056,7 @@
             }
 
             localStorage.removeItem('kbase_session');
-            $.removeCookie('kbase_session', { path: '/' });
+            $.removeCookie(this.cookieName, { path: '/' });
             $.removeCookie(this.cookieName, { path: '/', domain: 'kbase.us' });
 
             // the rest of this is just housekeeping.
