@@ -20,6 +20,7 @@ import IPython.html.services.notebooks.handlers
 import IPython
 import biokbase.auth
 import tornado
+from tornado import web
 
 def monkeypatch_method(cls):
     """
@@ -82,6 +83,9 @@ def do_patching( c ):
                      for k,v in cookierx.findall(urllib.unquote(cookie)) }
             IPython.html.base.handlers.app_log.debug("user_id = " + sess.get('token','None'))
             IPython.html.base.handlers.app_log.debug("token = " + sess.get('token','None'))
+            print "SESSION"
+            print sess
+            
             setattr(handler,'kbase_session', sess)
             # also push the token into the environment hash so that KBase python clients pick it up
             biokbase.auth.set_environ_token(sess.get('token','None'))
@@ -93,6 +97,8 @@ def do_patching( c ):
         def get(self,notebook_id):
             IPython.html.base.handlers.app_log.debug("notebook_id = " + notebook_id)
             if 'kbase_session' in self.cookies and hasattr(self,'notebook_manager'):
+                print "COOKIE"
+                print self.cookies 
                 IPython.html.base.handlers.app_log.debug("kbase_session = " + self.cookies['kbase_session'].value)
                 cookie_pusher(self.cookies['kbase_session'].value, getattr(self,'notebook_manager'))
             return old_get(self,notebook_id)
@@ -102,7 +108,7 @@ def do_patching( c ):
         @monkeypatch_method(IPython.html.services.notebooks.handlers.NotebookRootHandler)
         def get(self):
             if 'kbase_session' in self.cookies:
-                cookie_pusher( self.cookies['kbase_session'].value,getattr(self,'notebook_manager'))
+                cookie_pusher(self.cookies['kbase_session'].value,getattr(self,'notebook_manager'))
             return old_get1(self)
 
     IPython.html.base.handlers.app_log.debug("Monkeypatching IPython.html.base.handlers.RequestHandler.write_error() in process {}".format(os.getpid()))

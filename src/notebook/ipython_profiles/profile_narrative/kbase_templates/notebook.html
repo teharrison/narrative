@@ -412,9 +412,7 @@ console.log($.kbasePlantsNetworkNarrative);*/
 $(function() {
   $("#signin-button").kbaseLogin('session').user_id;
   USER_TOKEN = $("#signin-button").kbaseLogin('session').token;
-  console.log('here is the token blah', USER_TOKEN)
   kb = new KBCacheClient(USER_TOKEN)
-  console.log('here is kb', kb)
 })
 </script>
 

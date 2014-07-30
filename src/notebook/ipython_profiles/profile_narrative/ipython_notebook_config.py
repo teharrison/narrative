@@ -81,7 +81,7 @@ c.NotebookApp.port = 8888
 # c.NotebookApp.ipython_dir = u'/Users/sychan/.ipython'
 
 # Set the log level by value or name.
-# c.NotebookApp.log_level = 20
+c.NotebookApp.log_level = 0
 
 # Hashed password to use for web authentication.
 # 

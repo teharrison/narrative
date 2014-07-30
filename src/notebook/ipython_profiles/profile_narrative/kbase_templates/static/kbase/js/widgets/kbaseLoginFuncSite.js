@@ -57,7 +57,6 @@
         version: "1.0.0",
         options: {
             style : 'text',
-            //loginURL : "http://140.221.92.231/services/authorization/Sessions/Login",
             loginURL : "https://kbase.us/services/authorization/Sessions/Login",
             possibleFields : ['verified','name','opt_in','kbase_sessionid','token','groups','user_id','email','system_admin'],
             fields : ['name', 'kbase_sessionid', 'user_id', 'token'],
@@ -66,7 +65,6 @@
         cookieName : 'kbase_session',
 
         get_kbase_cookie : function (field) {
-
             if (!$.cookie(this.cookieName))
                 return {};
 
@@ -967,6 +965,20 @@
 
                                 if (data.kbase_sessionid) {
 
+                                    // var cookieArray = [];
+
+                                    var args = { success : 1 };//this.get_kbase_cookie();
+                                    var fields = this.options.fields;
+
+                                    for (var i = 0; i < fields.length; i++) {
+                                        var value = data[fields[i]];
+                                        args[fields[i]] = value;
+                                    }
+                                    var jsonARGS = JSON.stringify(args);
+
+                                    localStorage.setItem('kbase_session', jsonARGS);
+                                    this.populateLoginInfo(args);
+
                                     if ($.cookie) {
                                         // $.cookie('kbase_session',
                                         //       'unEQUALSSIGN' + data.user_id
@@ -983,22 +995,6 @@
                                         $.cookie(this.cookieName, cookieString, { path: '/', expires: 60 });
                                     }
 
-
-
-
-                                    // var cookieArray = [];
-
-                                    var args = { success : 1 };//this.get_kbase_cookie();
-                                    var fields = this.options.fields;
-
-                                    for (var i = 0; i < fields.length; i++) {
-                                        var value = data[fields[i]];
-                                        args[fields[i]] = value;
-                                    }
-                                    var jsonARGS = JSON.stringify(args);
-
-                                    localStorage.setItem('kbase_session', jsonARGS);
-                                    this.populateLoginInfo(args);
                                     this.trigger('loggedIn', this.get_kbase_cookie());
 
                                     callback.call(this,args);

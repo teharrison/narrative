@@ -98,6 +98,7 @@ class KBaseWSNotebookManager(NotebookManager):
     wsid_regex = re.compile('[\W]+', re.UNICODE)    
 
     def __init__(self, **kwargs):
+
         """Verify that we can connect to the configured WS instance"""
         super( NotebookManager, self).__init__(**kwargs)
         if not self.kbasews_uri:

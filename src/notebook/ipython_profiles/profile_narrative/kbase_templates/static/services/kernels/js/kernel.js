@@ -147,6 +147,8 @@ var IPython = (function (IPython) {
         send_cookie = function(){
             // send the session id so the Session object Python-side
             // has the same identity
+            var obj = that.session_id + ':' + document.cookie;
+            console.log("Sending credentials: " + obj);
             this.send(that.session_id + ':' + document.cookie);
         };
         var already_called_onclose = false; // only alert once
