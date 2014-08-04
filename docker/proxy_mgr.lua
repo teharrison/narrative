@@ -30,7 +30,7 @@
 local M={}
 
 local auth_cookie_name = "kbase_narr_session"
-local num_prov_retry = 10
+local num_launch_retry = 10
 
 -- regexes for matching/validating keys and values
 local key_regex = "[%w_%-%.]+"
@@ -581,23 +581,28 @@ end
 new_container = function( session_id)
 	local res = nil
 	ngx.log( ngx.INFO, "Creating new notebook instance for ",session_id )
-	local ok,res = pcall(notemgr.launch_notebook,session_id)
+	local ok, res = pcall(notemgr.launch_notebook,session_id)
 	if ok then
-		ngx.log( ngx.INFO, "New instance at: " .. res)
+		ngx.log(ngx.INFO, "New instance at: " .. res)
 		-- do a non-blocking sleep for 5 seconds to allow the instance to spin up
 
-		ngx.sleep(5)
-		local success,err,forcible = proxy_map:set(session_id,res)
-		if not success then
-			ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
-			ngx.log( ngx.ERR, "Error setting proxy_map: " .. err)
-			response = "Unable to set routing for notebook " .. err
-		else
-			success,err,forcible = proxy_state:set(session_id,true)
-			success,err,forcible = proxy_last:set(session_id,os.time())
+		for i=0,num_launch_retry,1 do
+			ngx.sleep(1)
+			local success,err,forcible = proxy_map:set(session_id,res)
+			if not success then
+				-- Do nothing here and try again!
+				ngx.log(ngx.ERR, "Error setting proxy_map: " .. err .. " try " .. i)				
+				-- ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
+				-- ngx.log( ngx.ERR, "Error setting proxy_map: " .. err)
+				-- response = "Unable to set routing for notebook " .. err
+			else
+				success,err,forcible = proxy_state:set(session_id,true)
+				success,err,forcible = proxy_last:set(session_id,os.time())
+				break
+			end
 		end
 	else
-		ngx.log( ngx.ERR, "Failed to launch new instance : ".. p.write(res ))
+		ngx.log(ngx.ERR, "Failed to launch new instance : ".. p.write(res))
 		res = nil
 	end
 	return(res)
