@@ -592,9 +592,9 @@ new_container = function( session_id)
 			if not success then
 				-- Do nothing here and try again!
 				ngx.log(ngx.ERR, "Error setting proxy_map: " .. err .. " try " .. i)				
-				-- ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
-				-- ngx.log( ngx.ERR, "Error setting proxy_map: " .. err)
-				-- response = "Unable to set routing for notebook " .. err
+				ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
+				ngx.log( ngx.ERR, "Error setting proxy_map: " .. err)
+				response = "Unable to set routing for notebook " .. err
 			else
 				success,err,forcible = proxy_state:set(session_id,true)
 				success,err,forcible = proxy_last:set(session_id,os.time())
@@ -636,7 +636,7 @@ use_proxy = function(self)
     end
     if target ~= nil then
         ngx.var.target = target
-        ngx.log( ngx.INFO, "session: " .. session_key .. " target: " .. ngx.var.target )
+--        ngx.log( ngx.INFO, "session: " .. session_key .. " target: " .. ngx.var.target )
         local success,err,forcible = proxy_last:set(session_key,os.time())
         if not success then
             ngx.log( ngx.WARN, "Error setting last seen timestamp proxy_last" )
