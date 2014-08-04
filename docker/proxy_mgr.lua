@@ -29,6 +29,9 @@
 
 local M={}
 
+local auth_cookie_name = "kbase_narr_session"
+local num_prov_retry = 10
+
 -- regexes for matching/validating keys and values
 local key_regex = "[%w_%-%.]+"
 local val_regex = "[%w_%-:%.]+"
@@ -482,71 +485,68 @@ end
 -- then the token is good and we put an entry in the proxy_token_cache
 -- table for it
 get_session = function()
-    local hdrs = ngx.req.get_headers()
-    local cheader = hdrs['Cookie']
-    local token = {}
-    local session_id = nil; -- nil return value by default
-    local error_msg = nil;
-    
-    if cheader then
-        -- ngx.log( ngx.INFO, string.format("cookie = %s",cheader))
-        local session = string.match( cheader,"kbase_session=([%S]+);?")
-        if session then
-            -- ngx.log( ngx.INFO, string.format("kbase_session = %s",session))
-            session = string.gsub(session,";$","")
-            session = url_decode(session)
-            for k, v in string.gmatch(session, "([%w_]+)=([^|]+);?") do
-                token[k] = v
-            end
-            if token['token'] then
-                token['token'] = string.gsub(token['token'],"PIPESIGN","|")
-                token['token'] = string.gsub(token['token'],"EQUALSSIGN","=")
-                --ngx.log( ngx.INFO, string.format("token[token] = %s",token['token']))
-            end
-        end
-    end
-    
-    if token['un'] then
-        local cached,err = proxy_token_cache:get(token['kbase_sessionid'])
-        -- we have to cache either the token itself, or a hash of the token
-        -- because this method gets called for every GET for something as
-        -- trivial as a .png or .css file, calculating and comparing an MD5
-        -- hash of the token would start to be costly given how many GETs
-        -- there are on a given page load.
-
-        -- So we cache the token itself. This is a security vulnerability,
-        -- however the exposure would require a hacker of fairly high end
-        -- skills (or someone who has read the source code...)
-        if cached and cached == token['token'] then
-            session_id = token['un']
-        else
-            ngx.log( ngx.ERR, "Token cache miss : ", token['kbase_sessionid'])
-            local req = {
-                url = nexus_url .. token['un'],
-                method = "GET",
-                headers = { Authorization = "Globus-Goauthtoken " .. token['token'] }
-            }
-            --ngx.log( ngx.DEBUG, "request.url = " .. req.url)
-            local ok,code,headers,status,body = httpclient:request( req)
-            --ngx.log( ngx.DEBUG, "Response - code: ", code)
-            if code >= 200 and code < 300 then
-                local profile = json.decode(body)
-                ngx.log( ngx.INFO, "Token validated for " .. profile.fullname .. " (" .. profile.username .. ")")
-                if profile.username == token.un then
-                    ngx.log( ngx.INFO, "Token username matches cookie identity, inserting session_id into token cache: " .. token['kbase_sessionid'])
-                    proxy_token_cache:set(token['kbase_sessionid'],token['token'])
-                    session_id = profile.username
-                else
-                    error_msg = "token username DOES NOT match cookie identity: " .. profile.username
-                    ngx.log( ngx.ERR, "Error: " .. err_msg)
-                end
-            else
-                error_msg = "Error during token validation: " ..  status .. " " .. body
-                ngx.log( ngx.ERR, error_msg)
-            end
-        end
-    end
-    return session_id, error_msg
+   local hdrs = ngx.req.get_headers()
+   local cheader = hdrs['Cookie']
+   local token = {}
+   local session_id = nil; -- nil return value by default
+   local error_msg = nil;
+   if cheader then
+      -- ngx.log( ngx.INFO, string.format("cookie = %s",cheader))
+      local session = string.match( cheader, auth_cookie_name .. "=([%S]+);?")
+      if session then
+	 -- ngx.log( ngx.INFO, string.format("kbase_session = %s",session))
+	 session = string.gsub(session,";$","")
+	 session = url_decode(session)
+	 for k, v in string.gmatch(session, "([%w_]+)=([^|]+);?") do
+	    token[k] = v
+	 end
+	 if token['token'] then
+	    token['token'] = string.gsub(token['token'],"PIPESIGN","|")
+	    token['token'] = string.gsub(token['token'],"EQUALSSIGN","=")
+	    --ngx.log( ngx.INFO, string.format("token[token] = %s",token['token']))
+	 end
+     end
+   end
+   if token['un'] then
+      local cached,err = proxy_token_cache:get(token['kbase_sessionid'])
+      -- we have to cache either the token itself, or a hash of the token
+      -- because this method gets called for every GET for something as
+      -- trivial as a .png or .css file, calculating and comparing an MD5
+      -- hash of the token would start to be costly given how many GETs
+      -- there are on a given page load.
+      -- So we cache the token itself. This is a security vulnerability,
+      -- however the exposure would require a hacker of fairly high end
+      -- skills (or someone who has read the source code...)
+      if cached and cached == token['token'] then
+	 session_id = token['un']
+      else
+	 ngx.log( ngx.ERR, "Token cache miss : ", token['kbase_sessionid'])
+	 local req = {
+	    url = nexus_url .. token['un'],
+	    method = "GET",
+	    headers = { Authorization = "Globus-Goauthtoken " .. token['token'] }
+	 }
+	 --ngx.log( ngx.DEBUG, "request.url = " .. req.url)
+	 local ok,code,headers,status,body = httpclient:request( req)
+	 --ngx.log( ngx.DEBUG, "Response - code: ", code)
+	 if code >= 200 and code < 300 then
+	    local profile = json.decode(body)
+	    ngx.log( ngx.INFO, "Token validated for " .. profile.fullname .. " (" .. profile.username .. ")")
+	    if profile.username == token.un then
+	       ngx.log( ngx.INFO, "Token username matches cookie identity, inserting session_id into token cache: " .. token['kbase_sessionid'])
+	       proxy_token_cache:set(token['kbase_sessionid'],token['token'])
+	       session_id = profile.username
+	    else
+	       error_msg = "token username DOES NOT match cookie identity: " .. profile.username
+	       ngx.log( ngx.ERR, "Error: " .. err_msg)
+	    end
+	 else
+	    error_msg = "Error during token validation: " ..  status .. " " .. body
+	    ngx.log( ngx.ERR, error_msg)
+	 end
+      end
+   end
+   return session_id, error_msg
 end
 
 --
@@ -578,28 +578,29 @@ end
 --
 -- Spin up a new instance
 --
-new_container = function(session_id)
-    local res = nil
-    ngx.log( ngx.INFO, "Creating new notebook instance for ",session_id )
-    local ok,res = pcall(notemgr.launch_notebook,session_id)
-    if ok then
-        ngx.log(ngx.INFO, "New instance at: " .. res)
-        -- do a none blocking sleep for 5 seconds to allow the instance to spin up
-        ngx.sleep(5)
-        local success,err,forcible = proxy_map:set(session_id,res)
-        if not success then
-            ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
-            ngx.log( ngx.ERR, "Error setting proxy_map: " .. err)
-            response = "Unable to set routing for notebook " .. err
-        else
-            success,err,forcible = proxy_state:set(session_id,true)
-            success,err,forcible = proxy_last:set(session_id,os.time())
-        end
-    else
-        ngx.log( ngx.ERR, "Failed to launch new instance : ".. p.write(res ))
-        res = nil
-    end
-    return(res)
+new_container = function( session_id)
+	local res = nil
+	ngx.log( ngx.INFO, "Creating new notebook instance for ",session_id )
+	local ok,res = pcall(notemgr.launch_notebook,session_id)
+	if ok then
+		ngx.log( ngx.INFO, "New instance at: " .. res)
+		-- do a non-blocking sleep for 5 seconds to allow the instance to spin up
+
+		ngx.sleep(5)
+		local success,err,forcible = proxy_map:set(session_id,res)
+		if not success then
+			ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
+			ngx.log( ngx.ERR, "Error setting proxy_map: " .. err)
+			response = "Unable to set routing for notebook " .. err
+		else
+			success,err,forcible = proxy_state:set(session_id,true)
+			success,err,forcible = proxy_last:set(session_id,os.time())
+		end
+	else
+		ngx.log( ngx.ERR, "Failed to launch new instance : ".. p.write(res ))
+		res = nil
+	end
+	return(res)
 end
 
 --
