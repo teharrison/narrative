@@ -34,7 +34,8 @@
             workspaceURL: "https://kbase.us/services/ws",
             wsBrowserURL: "/functional-site/#/ws/",
             landingPageURL: "/functional-site/#/",
-            uploaderURL: "http://kbase.us/services/docs/uploader/uploader.html",
+            uploaderURL: "//kbase.us/services/docs/uploader/uploader.html",
+            defaultLandingPage: "/functional-site/#/ws/json/", // ws_name/obj_name
             container: null,
             wsId: null,
         },
@@ -48,11 +49,11 @@
             if (this.options.wsId)
                 this.wsId = options.wsId;
 
-            if (window.kb && window.kb.urls) {
-                this.options.uploaderURL = window.kb.urls.uploader;
-                this.options.workspaceURL = window.kb.urls.workspace;
-                this.options.wsBrowserURL = window.kb.urls.ws_browser;
-                this.options.landingPageURL = window.kb.urls.landing_pages;
+            if (window.kbconfig && window.kbconfig.urls) {
+                this.options.uploaderURL = window.kbconfig.urls.uploader;
+                this.options.workspaceURL = window.kbconfig.urls.workspace;
+                this.options.wsBrowserURL = window.kbconfig.urls.ws_browser;
+                this.options.landingPageURL = window.kbconfig.urls.landing_pages;
             }
 
             /**
@@ -124,7 +125,7 @@
                             this.landingPageMap = response;
                         }, this),
                         error: $.proxy(function(error) {
-                            this.dbg("Unable to get any landing page map! Landing pages unavailable...");
+                            this.dbg("Unable to get any landing page map! Landing pages mapping unavailable...");
                             this.landingPageMap = null;
                         }, this)
                     })
@@ -249,13 +250,16 @@
             // Contains all data in the current narrative.
             this.$narrativeDiv = $('<div id="narrative-data">');
 
+
             // Put these into tabs.
             this.$dataPanel.kbaseTabs(
                 {
                     tabs : [
                         {
-                            tab : 'My Workspace Data',       //name of the tab
+                            tab: 'My Workspace Data',
+//                            tab : 'My Workspace Data&nbsp;&nbsp;&nbsp;<span data-toggle="tooltip" class="glyphicon glyphicon-new-window ws-link"></span>',       //name of the tab
                             content : this.$myDataDiv,       //jquery object to stuff into the content
+                            active: true
                         },
                         {
                             tab : 'Narrative',
@@ -265,8 +269,27 @@
                 }
             );
 
+            //add the click event to open the workspace from the workspace link in the
+            //'My Workspace Data' tab
+            $that = this;
+            $("#data-tabs .ws-link").bind('click',
+                function (e) {
+                    var url = $that.options.wsBrowserURL + "/objtable/" + $that.wsId;
+                    window.open(url,'_blank');
+                }   
+            );
+
+            //add the tooltip to the workspace list
+            $("#data-tabs .ws-link").tooltip({
+                title: "Open this workspace in a new window.",
+                placement: "bottom"
+            });
+
+
             this.$myDataDiv.kbaseNarrativeDataTable({ noDataText: 'No data found! Click <a href="' + this.options.uploaderURL + '" target="_new">here</a> to upload.'});
             this.$narrativeDiv.kbaseNarrativeDataTable({ noDataText: 'No data used in this Narrative yet!'});
+
+
 
 
             /************ OBJECT DETAILS MODAL *************/
@@ -620,14 +643,15 @@
             detailsBtn.off('click');
             // If we don't havea a landingPageType (it's still null), then we don't have a landing page for that
             // object. Remove the clicky function and add a tooltip.
+            var landingPage = this.options.defaultLandingPage + workspace + '/' + id;
             if (landingPageType) {
-                var landingPage = this.options.landingPageURL + landingPageType + '/' + workspace + '/' + id;
-                detailsBtn.click(function(event) { window.open(landingPage); });
-                detailsBtn.html("View Object");
+                landingPage = this.options.landingPageURL + landingPageType + '/' + encodeURIComponent(workspace) + '/' + encodeURIComponent(id);
             }
-            else {
-                detailsBtn.html("Landing Page Unavailable");
-            }
+            detailsBtn.click(function(event) { window.open(landingPage); });
+            detailsBtn.html("View Landing Page");
+            // else {
+            //     detailsBtn.html("Landing Page Unavailable");
+            // }
 
         },
 

@@ -50,8 +50,6 @@
         init: function(options) {
             this._super(options);
 
-            var self = this;
-
             this.ws_id = this.options.ws_id;
             // Whenever the notebook gets loaded, it should rebind things.
             // This *should* only happen once, but I'm putting it here anyway.
@@ -85,6 +83,14 @@
                 this)
             );
 
+            $(document).on('servicesUpdated.Narrative',
+                $.proxy(function(event, serviceSet) {
+                    console.log("listing services!");
+                    console.log(serviceSet);
+                },
+                this)
+            );
+
             $(document).on('narrativeDataQuery.Narrative', $.proxy(function(e, params, callback) {
                     var objList = this.getCurrentNarrativeData();
                     if (callback) {
@@ -97,9 +103,12 @@
             // When a user clicks on a function, this event gets fired with
             // method information. This builds a function cell out of that method
             // and inserts it in the right place.
-            $(document).on('function_clicked.Narrative', function(event, method) {
-                self.buildFunctionCell(method);
-            });
+            $(document).on('function_clicked.Narrative', 
+                $.proxy(function(event, method) {
+                    this.buildFunctionCell(method);
+                }, 
+                this)
+            );
 
 
             // Initialize the data table.
@@ -140,8 +149,8 @@
 
                 // These are the 'delete' and 'run' buttons for the cell
                 var buttons = "<div class='buttons pull-right'>" + //style='margin-top:10px'>" +
-                                  "<button id='" + cellId + "-delete' type='button' value='Delete' class='btn btn-default'>Delete</button> " +
-                                  "<button id='" + cellId + "-run' type='button' value='Run' class='btn btn-primary'>Run</button>" + 
+                                  "<button id='" + cellId + "-delete' type='button' value='Delete' class='btn btn-default btn-sm'>Delete</button> " +
+                                  "<button id='" + cellId + "-run' type='button' value='Run' class='btn btn-primary btn-sm'>Run</button>" + 
                               "</div>";
 
                 // The progress bar remains hidden until invoked by running the cell
@@ -691,14 +700,29 @@
          * @private
          */
         buildRunCommand: function(service, method, params) {
+            // very nice quote-escaper found here:
+            // http://stackoverflow.com/questions/770523/escaping-strings-in-javascript
+            // and
+            // http://phpjs.org/functions/addslashes/
+            var addSlashes = function(str) {
+                return (str + '').replace(/[\\"']/g, '\\$&').replace(/\u0000/g, '\\0');
+            };
+
+            var escService = addSlashes(service);
+            var escMethod = addSlashes(method);
             var cmd = "import biokbase.narrative.common.service as Service\n" +
-                      "method = Service.get_service('" + service + "').get_method('" + method + "')\n";
+                      "method = Service.get_service('" + escService + "').get_method('" + escMethod + "')\n";
 
                       // THIS SHOULD ONLY BE SET AT STARTUP BY THE MAIN JAVASCRIPT!!
                       // "import os; os.environ['KB_WORKSPACE_ID'] = '" + this.ws_id + "'\n" +
                       // "os.environ['KB_AUTH_TOKEN'] = '" + this.ws_auth + "'\n";
 
-            var paramList = params.map(function(p) { return "'" + p + "'"; });
+
+            var paramList = params.map(
+                function(p) { 
+                    return "'" + addSlashes(p) + "'"; 
+                }
+            );
             cmd += "method(" + paramList + ")";
 
             return cmd;
@@ -748,7 +772,43 @@
          * @private
          */
         handleExecuteReply: function (cell, content) {
-//            console.debug("Done running the function", content);
+            // this.dbg('[handleExecuteReply]');
+            // // this.dbg(content);
+
+            // this.dbg(cell);
+            /* This catches and displays any errors that don't get piped through
+             * the back-end service.py mechanism.
+             * Any code that makes it that far gets reported through the output
+             * mechanism and ends here with an 'ok' message.
+             */
+            if (content.status === 'error') {
+                var errorBlob = {
+                    msg : content.evalue,
+                    type : content.ename,
+                };
+
+                if (cell && cell.metadata && cell.metadata['kb-cell'] &&
+                    cell.metadata['kb-cell'].method)
+                    errorBlob.method_name = cell.metadata['kb-cell'].method.title;
+
+                var removeVt = function(line) {
+                    return line.replace(/\[\d+(;\d+)?m/g, '');
+                };
+
+                var errTb = content.traceback.map(function(line) {
+                    return {
+                        filename: null,
+                        function: null,
+                        line: null,
+                        text: removeVt(line)
+                    };
+                });
+
+                errorBlob.traceback = errTb;
+                this.createErrorCell(cell, JSON.stringify(errorBlob));
+
+            }
+            console.debug("Done running the function", content);
             this.showCellProgress(cell, "DONE", 0, 0);
             //this.set_input_prompt(content.execution_count);
             $([IPython.events]).trigger('set_dirty.Notebook', {value: true});
@@ -1118,6 +1178,11 @@
          * @returns this
          */
         render: function() {
+            var creator = IPython.notebook.metadata.creator;
+            if (creator) {// insert agnosticism here
+                $('.creator-stamp').text('Created by ' + creator);
+            }
+
             this.rebindActionButtons();
             this.hideGeneratedCodeCells();
             var cells = IPython.notebook.get_cells();
