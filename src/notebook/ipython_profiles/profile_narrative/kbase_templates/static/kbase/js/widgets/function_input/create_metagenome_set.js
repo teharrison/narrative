@@ -125,6 +125,12 @@
 	        var self = this.master;
 	        var d = document.getElementById("mgInputResultDiv"+this.index);
 
+		// check if listName is valid
+		if (listName.match(/\s/)) {
+		    alert("List names may not contain spaces");
+		    return;
+		}
+
 		// check if amplicon and wgs are mixed
 		var amplicon = 0;
 		var wgs = 0;
